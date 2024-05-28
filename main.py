@@ -1,182 +1,48 @@
-﻿import tkinter as tk
+﻿# Desenho - GUI
+import tkinter as tk
 from tkinter import messagebox
 from tkinter import font
 import customtkinter as ctk
-
+# Requests com API
 import requests
 import openmeteo_requests
 import requests_cache
 from retry_requests import retry
-
+# Desenhar gráficos e imagens
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk, ImageDraw
-
+# Data & lingua local, manipulação do sistema operativo
 from datetime import datetime, timedelta
 import locale
 import os
-import threading
 
-API_KEY_WEATHER = '6de9d4c574f54850af113b86005202b2'  # Chave da API do Weatherbit
-API_KEY_GEO = 'cc88a6dd1b8de7'         # Chave da API IPinfo
-cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-openmeteo = openmeteo_requests.Client(session = retry_session)      
-locale.setlocale(locale.LC_TIME, "pt_PT.UTF-8")
+#Chaves API & Variáveis Globais
+API_KEY_WEATHER = '7c52c8ac1ade296719e7956dddc54a50'
+API_KEY_GEO = 'd77ca19ad70093'        
 
-def set_localidade_inicial():
-    try:
-        response = requests.get(f"https://ipinfo.io?token={API_KEY_GEO}")
-        if response.status_code == 200:
-            data = response.json()
-            loc = data['city'] + ' - ' + data['country']
-            lat,lon = data['loc'].split(',')
-            cor_var.set(f"Latitude: {lat} - Longitude: {lon}")
-            localidade_var.set(f"Localidade: {loc}")
+COUNTRY_LIST = [    'PT',  # Portugal
+    'ES',  # Spain
+    'FR',  # France
+    'DE',  # Germany
+    'IT',  # Italy
+    'CN',  # China
+    'JP',  # Japan
+    'IN',  # India
+    'RU',  # Russia
+    'GB',  # United Kingdom
+    'CA',  # Canada
+    'AU',  # Australia
+    'MX',  # Mexico
+    'AR',  # Argentina
+    'ZA',  # South Africa
+    'KR',  # South Korea
+    'SE',  # Sweden
+    'NL',  # Netherlands
+    'CH',  # Switzerland
+]
 
-            print(f"Localidade inicial definida: {loc}")
-        else:
-            print("Não foi possivel obter a localização inicial.")
-    except Exception as e:
-        print(f"Erro ao buscar localização inicial: {e}")
-        
-def set_localidade():
-    localidade_window = ctk.CTkToplevel(root)
-    localidade_window.title("Definir Localização")
-    localidade_window.geometry("300x200")
-
-    ctk.CTkLabel(localidade_window, text="Cidade:").pack()
-    localidade_entry = ctk.CTkEntry(localidade_window)
-    localidade_entry.pack()
-
-    ctk.CTkLabel(localidade_window, text="País:").pack()
-    country_combo = ctk.CTkComboBox(localidade_window, values=country_list)
-    country_combo.pack()
-    country_combo.set('Escolha um país')
-
-    def confirm_action():
-        localidade = localidade_entry.get()
-        country = country_combo.get()
-        if localidade and country:
-            localidade_var.set(f"Localidade: {localidade} - {country}")
-            localidade_window.destroy()
-
-    confirm_button = ctk.CTkButton(localidade_window, text="Confirmar", command=confirm_action)
-    confirm_button.pack()
-
-def temperatura_action():
-    full_localidade = localidade_var.get().split(': ')[1]
-    if full_localidade and full_localidade != "Nenhuma":
-        cidade, pais = full_localidade.split(' - ')
-        url = f"https://api.weatherbit.io/v2.0/current?city={cidade}&country={pais}&key={API_KEY_WEATHER}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            if 'data' in data and len(data['data']) > 0:
-                temperatura = data['data'][0]['temp']
-                cidade= data['data'][0]['city_name']
-                resultado_var.set(f"Temperatura em {cidade}, {pais}: {temperatura}ºC")
-            else:
-                resultado_var.set("Nenhum dado de temperatura disponivel para esta localidade.")
-        else:
-            resultado_var.set(f"Erro ao buscar dados da API: {response.status_code}")
-
-def get_velocidade():
-    full_localidade = localidade_var.get().split(': ')[1]
-    if full_localidade and full_localidade != "Nenhuma":
-        cidade, pais = full_localidade.split(' - ')
-        url = f"https://api.weatherbit.io/v2.0/current?city={cidade}&country={pais}&key={API_KEY_WEATHER}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            if 'data' in data and len(data['data']) > 0:
-                velocidade = data['data'][0]['wind_spd']
-                cidade= data['data'][0]['city_name']
-                resultado_var.set(f"Velocidade do vento em {cidade}, {pais}: {velocidade}m/s")
-            else:
-                resultado_var.set("Nenhum dado de velocidade disponivel para esta localidade.")
-        else:
-            resultado_var.set(f"Erro ao buscar dados da API: {response.status_code}")
-
-def get_humidade():
-    full_localidade = localidade_var.get().split(': ')[1]
-    if full_localidade and full_localidade != "Nenhuma":
-        cidade, pais = full_localidade.split(' - ')
-        url = f"https://api.weatherbit.io/v2.0/current?city={cidade}&country={pais}&key={API_KEY_WEATHER}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            if 'data' in data and len(data['data']) > 0:
-                humidade = data['data'][0]['rh']
-                cidade= data['data'][0]['city_name']
-                resultado_var.set(f"Humidade em {cidade}, {pais}: {humidade}%")
-            else:
-                resultado_var.set("Nenhum dado de humidade disponivel para esta localidade.")
-        else:
-            resultado_var.set(f"Erro ao buscar dados da API: {response.status_code}")
-          
-def fetch_temperature_data():
-    try:
-        coordenadas = cor_var.get().replace("Latitude: ", "").replace("Longitude: ", "").split(" - ")
-        if len(coordenadas) != 2:
-            raise ValueError("Formato de coordenadas inválido. Esperado: 'Latitude: X - Longitude: Y'")
-        
-        lat, lon = coordenadas
-
-        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-        end_date = datetime.now().strftime('%Y-%m-%d')
-
-        url = "https://archive-api.open-meteo.com/v1/archive"
-        params = {
-            "latitude": lat,
-            "longitude": lon,
-            "start_date": start_date,
-            "end_date": end_date,
-            "hourly": "temperature_2m"
-        }
-
-        response = requests.get(url, params=params)
-        print("URL da API:", response.url)  # Verificar a URL completa com parâmetros
-        print("Status Code:", response.status_code)
-        print("Resposta da API:", response.text)  # Imprimir a resposta completa da API
-
-        if response.status_code == 200:
-            if response.text.strip() == "":
-                raise ValueError("Resposta da API está vazia")
-            try:
-                data = response.json()
-                if 'hourly' not in data or 'temperature_2m' not in data['hourly'] or 'time' not in data['hourly']:
-                    raise ValueError("Estrutura esperada não encontrada no JSON")
-                
-                temperatures = data['hourly']['temperature_2m']
-                dates = [datetime.strptime(day, "%Y-%m-%dT%H:%M") for day in data['hourly']['time']]
-                return dates, temperatures
-            except ValueError as ve:
-                raise Exception(f"Erro ao processar JSON: {ve}")
-        else:
-            raise Exception(f"Falha ao buscar dados da API: Status {response.status_code}")
-    except Exception as e:
-        print("Erro ao buscar dados da API:", e)
-        raise
-    
-def show_temperature_graph():
-    try:
-        dates, temperatures = fetch_temperature_data()
-        plt.figure(figsize=(20, 5))
-        plt.plot(dates, temperatures, marker='o')
-        plt.title('Temperatura (Ultimos 7 dias)')
-        plt.xlabel('Data')
-        plt.ylabel('Temperatura (ºC)')
-        plt.grid(True)
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.show()
-    except Exception as e:
-        messagebox.showerror("Erro", str(e))
-
-def map_weather_codes_to_images():
-      # Defina o caminho base absoluto para o diretório de ícones
-    base_dir = r'icons'
-    weather_codes_to_images = {
+base_dir = r'icons'
+ICONS_TO_ARR = {
         '200': os.path.join(base_dir,'Icon_Number_200.png'),
         '201': os.path.join(base_dir,'Icon_Number_201.png'),
         '202': os.path.join(base_dir,'Icon_Number_202.png'),
@@ -234,7 +100,163 @@ def map_weather_codes_to_images():
         '961': os.path.join(base_dir,'Icon_Number_961.png'),
         '962': os.path.join(base_dir,'Icon_Number_962.png'),
     }
-    return weather_codes_to_images
+
+# Retenção dos dados da API em cache e retries com delay (em caso de falha)
+cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
+retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
+openmeteo = openmeteo_requests.Client(session = retry_session)      
+# Linguagem para Português Portugal
+locale.setlocale(locale.LC_TIME, "pt_PT.UTF-8")
+
+def set_localidade_inicial():
+    try:
+        response = requests.get(f"https://ipinfo.io?token={API_KEY_GEO}")
+        if response.status_code == 200:
+            data = response.json()
+            loc = data['city'] + ' - ' + data['country']
+            lat,lon = data['loc'].split(',')
+            cor_var.set(f"Latitude: {lat} - Longitude: {lon}")
+            localidade_var.set(f"Localidade: {loc}")
+
+            print(f"Localidade inicial definida: {loc}")
+        else:
+            print("Não foi possivel obter a localização inicial.")
+    except Exception as e:
+        print(f"Erro ao buscar localização inicial: {e}")
+        
+def set_localidade():
+    localidade_window = ctk.CTkToplevel(root)
+    localidade_window.title("Definir Localização")
+    localidade_window.geometry("300x200")
+
+    ctk.CTkLabel(localidade_window, text="Cidade:").pack()
+    localidade_entry = ctk.CTkEntry(localidade_window)
+    localidade_entry.pack()
+
+    ctk.CTkLabel(localidade_window, text="País:").pack()
+    country_combo = ctk.CTkComboBox(localidade_window, values=COUNTRY_LIST)
+    country_combo.pack()
+    country_combo.set('Escolha um país')
+
+    def confirmar():
+        localidade = localidade_entry.get()
+        country = country_combo.get()
+        if localidade and country:
+            localidade_var.set(f"Localidade: {localidade} - {country}")
+            localidade_window.destroy()
+
+    confirm_button = ctk.CTkButton(localidade_window, text="Confirmar", command=confirmar)
+    confirm_button.pack()
+
+def get_temperatura():
+    full_localidade = localidade_var.get().split(': ')[1]
+    if full_localidade and full_localidade != "Nenhuma":
+        cidade, pais = full_localidade.split(' - ')
+        url = f"https://api.weatherbit.io/v2.0/current?city={cidade}&country={pais}&key={API_KEY_WEATHER}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if 'data' in data and len(data['data']) > 0:
+                temperatura = data['data'][0]['temp']
+                cidade= data['data'][0]['city_name']
+                resultado_var.set(f"Temperatura em {cidade}, {pais}: {temperatura}ºC")
+            else:
+                resultado_var.set("Nenhum dado de temperatura disponivel para esta localidade.")
+        else:
+            resultado_var.set(f"Erro ao buscar dados da API: {response.status_code}")
+
+def get_velocidade():
+    full_localidade = localidade_var.get().split(': ')[1]
+    if full_localidade and full_localidade != "Nenhuma":
+        cidade, pais = full_localidade.split(' - ')
+        url = f"https://api.weatherbit.io/v2.0/current?city={cidade}&country={pais}&key={API_KEY_WEATHER}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if 'data' in data and len(data['data']) > 0:
+                velocidade = data['data'][0]['wind_spd']
+                cidade= data['data'][0]['city_name']
+                resultado_var.set(f"Velocidade do vento em {cidade}, {pais}: {velocidade}m/s")
+            else:
+                resultado_var.set("Nenhum dado de velocidade disponivel para esta localidade.")
+        else:
+            resultado_var.set(f"Erro ao buscar dados da API: {response.status_code}")
+
+def get_humidade():
+    full_localidade = localidade_var.get().split(': ')[1]
+    if full_localidade and full_localidade != "Nenhuma":
+        cidade, pais = full_localidade.split(' - ')
+        url = f"https://api.weatherbit.io/v2.0/current?city={cidade}&country={pais}&key={API_KEY_WEATHER}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            if 'data' in data and len(data['data']) > 0:
+                humidade = data['data'][0]['rh']
+                cidade= data['data'][0]['city_name']
+                resultado_var.set(f"Humidade em {cidade}, {pais}: {humidade}%")
+            else:
+                resultado_var.set("Nenhum dado de humidade disponivel para esta localidade.")
+        else:
+            resultado_var.set(f"Erro ao buscar dados da API: {response.status_code}")
+          
+def draw_temperatura():
+    try:
+        coordenadas = cor_var.get().replace("Latitude: ", "").replace("Longitude: ", "").split(" - ")
+        if len(coordenadas) != 2:
+            raise ValueError("Formato de coordenadas inválido. Esperado: 'Latitude: X - Longitude: Y'")
+        
+        lat, lon = coordenadas
+
+        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+        url = "https://archive-api.open-meteo.com/v1/archive"
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "start_date": start_date,
+            "end_date": end_date,
+            "hourly": "temperature_2m"
+        }
+
+        response = requests.get(url, params=params)
+        print("URL da API:", response.url)  # Verificar a URL completa com parâmetros
+        print("Status Code:", response.status_code)
+        print("Resposta da API:", response.text)  # Imprimir a resposta completa da API
+
+        if response.status_code == 200:
+            if response.text.strip() == "":
+                raise ValueError("Resposta da API está vazia")
+            try:
+                data = response.json()
+                if 'hourly' not in data or 'temperature_2m' not in data['hourly'] or 'time' not in data['hourly']:
+                    raise ValueError("Estrutura esperada não encontrada no JSON")
+                
+                temperatures = data['hourly']['temperature_2m']
+                dates = [datetime.strptime(day, "%Y-%m-%dT%H:%M") for day in data['hourly']['time']]
+                return dates, temperatures
+            except ValueError as ve:
+                raise Exception(f"Erro ao processar JSON: {ve}")
+        else:
+            raise Exception(f"Falha ao buscar dados da API: Status {response.status_code}")
+    except Exception as e:
+        print("Erro ao buscar dados da API:", e)
+        raise
+    
+def show_temperatura():
+    try:
+        dates, temperatures = draw_temperatura()
+        plt.figure(figsize=(20, 5))
+        plt.plot(dates, temperatures, marker='o')
+        plt.title('Temperatura (Ultimos 7 dias)')
+        plt.xlabel('Data')
+        plt.ylabel('Temperatura (ºC)')
+        plt.grid(True)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        messagebox.showerror("Erro", str(e))
 
 def previsao_temperatura():
     full_localidade = localidade_var.get().split(': ')[1]
@@ -255,10 +277,10 @@ def previsao_temperatura():
                 for i in range(7):
                     dia = data['data'][i]
                     icon_code = dia['weather']['code']
-                    image_path = map_weather_codes_to_images().get(str(icon_code), 'icons/default.png')
+                    image_path = ICONS_TO_ARR.get(str(icon_code), 'icons/default.png')
                     #Verificar se o caminho da imagem existe
                     if not os.path.exists(image_path):
-                        image_path = 'icons/default.png'  # Caminho para uma imagem padrão ou substituta
+                        image_path = 'icons/default.png'
                     
                     img = Image.open(image_path)
                     img = img.resize((30, 30), Image.LANCZOS)
@@ -269,7 +291,7 @@ def previsao_temperatura():
                     day_of_week = date_obj.strftime('%A')
                     button_text = f"{day_of_week}: {temp}°C"
                     button = ctk.CTkButton(previsaobutton, text=button_text, image=img, compound=tk.LEFT, command=lambda d=dia: mostrar_detalhes(d), fg_color="black")
-                    button.image = img  # keep a reference to avoid garbage collection
+                    button.image = img  
                     button.pack(pady=5)
             else:
                 ctk.CTkLabel(previsaobutton, text="Nenhum dado disponível", font=label_font).pack()
@@ -295,70 +317,30 @@ def mostrar_detalhes(dia):
     """
     ctk.CTkLabel(detalhes_janela, text=detalhes_texto, justify=tk.LEFT).pack(pady=10)
 
-def create_image():
-    # Create an image with PIL
-    width = 64
-    height = 64
-    image = Image.new('RGB', (width, height), (255, 255, 255))
-    dc = ImageDraw.Draw(image)
-    dc.rectangle((width // 2, 0, width, height // 2), fill='black')
-    dc.rectangle((0, height // 2, width // 2, height), fill='black')
-    return image
-
-def on_quit(icon, item):
-    icon.stop()
-    if root is not None:
-        root.destroy()
-
-def open_main_window():
-    global root
-    root.deiconify()
-
-def minimize_to_tray():
-    global icon
-    root.withdraw()
-    icon.run()
+####################################
+####################################
+#            LÓGICA UI
+####################################
+####################################
 
 root = ctk.CTk()
-root.title("Informações Meteorológicas")
-root.geometry("500x400")
+root.title("Programa de Monitorização climática")
+root.geometry("450x350")
 
 cor_var = tk.StringVar(root, "Latitude: Nenhuma - Longitude: Nenhuma")
 localidade_var = tk.StringVar(root, "Localidade: Nenhuma")
 resultado_var = tk.StringVar(root)
 
-# Lista de códigos de país para o exemplo, use uma lista completa conforme necessário
-country_list = [    'PT',  # Portugal
-    'ES',  # Spain
-    'FR',  # France
-    'DE',  # Germany
-    'IT',  # Italy
-    'CN',  # China
-    'JP',  # Japan
-    'IN',  # India
-    'RU',  # Russia
-    'GB',  # United Kingdom
-    'CA',  # Canada
-    'AU',  # Australia
-    'MX',  # Mexico
-    'AR',  # Argentina
-    'ZA',  # South Africa
-    'KR',  # South Korea
-    'SE',  # Sweden
-    'NL',  # Netherlands
-    'CH',  # Switzerland
-]
-
 set_localidade_inicial()
 
-# Container for buttons
+# Container
 button_frame = ctk.CTkFrame(root, fg_color="transparent")
 button_frame.pack(side=tk.TOP, pady=10)
 
 btn_localidade = ctk.CTkButton(button_frame, text="Definir Localização", command=set_localidade)
 btn_localidade.pack(side=tk.TOP, pady=10)
 
-btn_temperatura = ctk.CTkButton(button_frame, text="Temperatura (ºC)", command=temperatura_action)
+btn_temperatura = ctk.CTkButton(button_frame, text="Temperatura (ºC)", command=get_temperatura)
 btn_temperatura.pack(side=tk.LEFT, padx=5)
 
 btn_humidade = ctk.CTkButton(button_frame, text="Humidade (%)", command=get_humidade)
@@ -367,7 +349,7 @@ btn_humidade.pack(side=tk.LEFT, padx=5)
 btn_vv = ctk.CTkButton(button_frame, text="Vento (m/s)", command=get_velocidade)
 btn_vv.pack(side=tk.LEFT, padx=5)
 
-btn_show_graph = ctk.CTkButton(root, text="Gráfico de Temperaturas", command=show_temperature_graph, fg_color="black")
+btn_show_graph = ctk.CTkButton(root, text="Gráfico de Temperaturas", command=show_temperatura, fg_color="black")
 btn_show_graph.pack(pady=10)
 
 btn_prev = ctk.CTkButton(root, text="Previsões", command=previsao_temperatura, fg_color="black")
@@ -382,14 +364,6 @@ label_resultado.pack(side=tk.TOP, anchor=tk.N, pady=20)
 btn_aviso = ctk.CTkButton(root, text="Desastres Teste", command=lambda: messagebox.showinfo("teste", "teste"), fg_color="red")
 btn_aviso.pack(side=tk.TOP, anchor=tk.N, pady=20, padx=10)
 
-
 root.protocol("WM_DELETE_WINDOW", root.destroy)
-
-def main_task():
-    return
-
-# Run the main task in a separate thread
-task_thread = threading.Thread(target=main_task, daemon=True)
-task_thread.start()
 
 root.mainloop()
