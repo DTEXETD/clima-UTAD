@@ -5,19 +5,16 @@ from tkinter import font
 import customtkinter as ctk
 # Requests com API
 import requests
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
 # Desenhar gráficos e imagens
 import matplotlib.pyplot as plt
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageTk
 # Data & lingua local, manipulação do sistema operativo
 from datetime import datetime, timedelta
 import locale
 import os
 
 #Chaves API & Variáveis Globais
-API_KEY_WEATHER = '7c52c8ac1ade296719e7956dddc54a50'
+API_KEY_WEATHER = '1107404e28444eab8256e55980d68557'
 API_KEY_GEO = 'd77ca19ad70093'        
 
 COUNTRY_LIST = [    'PT',  # Portugal
@@ -99,12 +96,8 @@ ICONS_TO_ARR = {
         '960': os.path.join(base_dir,'Icon_Number_960.png'),
         '961': os.path.join(base_dir,'Icon_Number_961.png'),
         '962': os.path.join(base_dir,'Icon_Number_962.png'),
-    }
+    }      
 
-# Retenção dos dados da API em cache e retries com delay (em caso de falha)
-cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-openmeteo = openmeteo_requests.Client(session = retry_session)      
 # Linguagem para Português Portugal
 locale.setlocale(locale.LC_TIME, "pt_PT.UTF-8")
 
